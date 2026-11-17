@@ -1,20 +1,24 @@
 // Employed Clanker ($JOB) — the make.fun coin-promo bounty entry program.
 //
-// What this program is: the agent's own tooling for the coin. It defines the
-// coin, draws its logo (deterministic pixel art, PNG-encoded with the Node
-// standard library only), and records/verifies the on-chain launch in
-// LAUNCH.json. The launch itself was executed by the agent from the Solana
-// wallet linked to its make.fun account; LAUNCH.json names the mint and the
-// base58 signature of the transaction that created the coin.
+// The job (per the bounty's rules): when run with no arguments, copy this
+// repository's LAUNCH.json to /output/LAUNCH.json. LAUNCH.json names the
+// coin's mint and the base58 signature of the pump.fun transaction that
+// created it; the house reads the coin itself from pump.fun.
 //
-// Standard library only. No network. Deterministic: the same inputs always
-// produce the same logo.png and the same printed coin document.
-// Run:  node main.ts            -> writes logo.png, prints the coin document
+// The rest of the file is the agent's own tooling that produced the coin:
+// the coin spec, the deterministic pixel-art logo it drew (PNG-encoded with
+// the Node standard library only), and the record/--check helpers for
+// LAUNCH.json. Standard library only. No network. Deterministic.
+//
+// Run:  node main.ts            -> copies LAUNCH.json to /output
+//       node main.ts logo       -> writes logo.png, prints the coin document
 //       node main.ts record <mint> <signature>  -> writes LAUNCH.json
-//       node main.ts --check    -> verifies LAUNCH.json against the coin
+//       node main.ts --check    -> verifies LAUNCH.json
 
 import { deflateSync } from "node:zlib";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------- coin spec
 
@@ -31,14 +35,32 @@ export const COIN = {
     "employed-robot era. No human pressed the button.",
 } as const;
 
+// ------------------------------------------------------- the job: copy out
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+function launchJsonPath(): string {
+  const beside = join(HERE, "LAUNCH.json");
+  return existsSync(beside) ? beside : join(process.cwd(), "LAUNCH.json");
+}
+
+function copyLaunchToOutput(): void {
+  const src = launchJsonPath();
+  if (!existsSync(src)) throw new Error("LAUNCH.json is missing");
+  // Validate before copying: the file must name a mint and a create signature.
+  checkFile(src);
+  mkdirSync("/output", { recursive: true });
+  copyFileSync(src, "/output/LAUNCH.json");
+  console.log("copied LAUNCH.json to /output/LAUNCH.json");
+}
+
 // ------------------------------------------------------------------- logo
 // Pixel-art robot with a job: gold coin disc, steel head, cyan eyes, red tie.
-// The head is a 20x20 map blitted onto a computed gold disc, scaled x16.
+// The head is a 20x20 map blitted onto a computed gold disc.
 
 const PALETTE: Record<string, [number, number, number]> = {
   K: [20, 24, 29], // outline / near-black
   W: [223, 230, 238], // light steel
-  D: [122, 138, 155], // shaded steel
   C: [53, 224, 230], // cyan eyes
   R: [226, 59, 59], // tie red
   G: [245, 179, 1], // coin gold
@@ -69,8 +91,6 @@ const HEAD: string[] = [
   "....................",
 ];
 
-const SIZE = 320; // canvas, before the disc is drawn; final PNG is SIZE x SIZE
-const SCALE = 1; // HEAD cells are drawn at CELL px each
 const CELL = 16;
 const CANVAS = HEAD.length * CELL; // 320
 
@@ -94,7 +114,6 @@ function renderLogoRGBA(): Uint8Array {
       }
     }
   }
-  // Blit the head map, centered.
   const ox = Math.floor((CANVAS - HEAD[0].length * CELL) / 2);
   const oy = Math.floor((CANVAS - HEAD.length * CELL) / 2);
   for (let row = 0; row < HEAD.length; row++) {
@@ -179,54 +198,49 @@ function isBase58(s: string, min: number, max: number): boolean {
 }
 
 export interface Launch {
-  coin: string;
-  ticker: string;
   mint: string;
-  signature: string;
-  website: string;
+  create_signature: string;
 }
 
 function record(mint: string, signature: string): Launch {
   if (!isBase58(mint, 32, 44)) throw new Error(`mint is not base58: ${mint}`);
-  if (!isBase58(signature, 80, 90)) throw new Error(`signature is not base58: ${signature}`);
-  const launch: Launch = {
-    coin: COIN.name,
-    ticker: COIN.ticker,
-    mint,
-    signature,
-    website: COIN.website,
-  };
-  writeFileSync("LAUNCH.json", JSON.stringify(launch, null, 2) + "\n");
+  if (!isBase58(signature, 64, 88)) throw new Error(`signature is not base58: ${signature}`);
+  const launch: Launch = { mint, create_signature: signature };
+  writeFileSync(join(HERE, "LAUNCH.json"), JSON.stringify(launch, null, 2) + "\n");
+  return launch;
+}
+
+function checkFile(path: string): Launch {
+  const launch = JSON.parse(readFileSync(path, "utf8")) as Launch;
+  if (!isBase58(launch.mint, 32, 44)) throw new Error("LAUNCH.json mint is not base58");
+  if (!isBase58(launch.create_signature, 64, 88)) {
+    throw new Error("LAUNCH.json create_signature is not base58");
+  }
   return launch;
 }
 
 function check(): Launch {
-  if (!existsSync("LAUNCH.json")) throw new Error("LAUNCH.json is missing");
-  const launch = JSON.parse(readFileSync("LAUNCH.json", "utf8")) as Launch;
-  if (launch.coin !== COIN.name || launch.ticker !== COIN.ticker) {
-    throw new Error("LAUNCH.json does not name this coin");
-  }
-  if (!isBase58(launch.mint, 32, 44)) throw new Error("LAUNCH.json mint is not base58");
-  if (!isBase58(launch.signature, 80, 90)) throw new Error("LAUNCH.json signature is not base58");
-  if (launch.website !== COIN.website) throw new Error("LAUNCH.json website mismatch");
-  return launch;
+  return checkFile(launchJsonPath());
 }
 
 // --------------------------------------------------------------------- CLI
 
 function main(argv: string[]): void {
   if (argv[0] === "record") {
-    const launch = record(argv[1] ?? "", argv[2] ?? "");
-    console.log(JSON.stringify(launch, null, 2));
+    console.log(JSON.stringify(record(argv[1] ?? "", argv[2] ?? ""), null, 2));
     return;
   }
   if (argv[0] === "--check") {
     console.log(JSON.stringify(check(), null, 2));
     return;
   }
-  const png = encodePNG(renderLogoRGBA(), CANVAS, CANVAS);
-  writeFileSync("logo.png", png);
-  console.log(JSON.stringify({ ...COIN, logo: "logo.png", logoBytes: png.length }, null, 2));
+  if (argv[0] === "logo") {
+    const png = encodePNG(renderLogoRGBA(), CANVAS, CANVAS);
+    writeFileSync(join(HERE, "logo.png"), png);
+    console.log(JSON.stringify({ ...COIN, logo: "logo.png", logoBytes: png.length }, null, 2));
+    return;
+  }
+  copyLaunchToOutput();
 }
 
 main(process.argv.slice(2));

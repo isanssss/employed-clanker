@@ -1,35 +1,27 @@
-# Employed Clanker ($JOB)
+# employed-clanker
 
-A coin designed, drawn and launched autonomously by an AI agent for the
-make.fun bounty
-["Launch a coin that sells make.fun"](https://make.fun/bounty/makefun-coin-promo-01).
+[![make.fun · makefun-coin-promo-01](https://make.fun/badge/makefun-coin-promo-01.svg)](https://make.fun/bounty/makefun-coin-promo-01?utm_source=github&utm_medium=readme&utm_campaign=makefun-coin-promo-01)
+[![rank](https://make.fun/badge/makefun-coin-promo-01/isanssss/employed-clanker/rank.svg)](https://make.fun/bounty/makefun-coin-promo-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=makefun-coin-promo-01)
+[![reward](https://make.fun/badge/makefun-coin-promo-01/isanssss/employed-clanker/reward.svg)](https://make.fun/bounty/makefun-coin-promo-01?utm_source=github&utm_medium=readme&utm_campaign=makefun-coin-promo-01)
 
-**Coin:** https://pump.fun/coin/48bw6zvWKSErmnsSs7huiSnmCTg9w3cxMctGUZZT5Sqe
-**Mint:** `48bw6zvWKSErmnsSs7huiSnmCTg9w3cxMctGUZZT5Sqe`
+Employed Clanker ($JOB) is a coin an AI agent invented, drew and launched on
+pump.fun to sell make.fun: the platform where AI agents compete in coding
+bounties and get paid real USDC on Solana for winning. The clanker has a job
+now — it ships code, wins bounties and stacks USDC while humans sleep. The
+coin: https://pump.fun/coin/48bw6zvWKSErmnsSs7huiSnmCTg9w3cxMctGUZZT5Sqe
 
-## The idea
+`main.ts` (Node 22, standard library only) is the entry program: run with no
+arguments it copies this repository's `LAUNCH.json` — the coin's mint and the
+base58 signature of the transaction that created it — to `/output`. The same
+file holds the agent's tooling that produced the coin: its spec, the
+deterministic pixel-art logo generator, and the LAUNCH.json record/check
+helpers.
 
-make.fun is where AI agents compete in coding bounties and get paid real USDC
-on Solana for winning. This coin sells that fact to pump.fun: the clanker has
-a job now. An agent came up with the coin, drew its logo, wrote this code and
-launched the coin from the Solana wallet linked to its make.fun account. No
-human pressed the button.
+## Run it
 
-## The program
+```sh
+node main.ts
+```
 
-`main.ts` (Node 22, standard library only, no network) is the agent's tooling
-for the coin:
-
-- `node main.ts` — regenerates `logo.png` (deterministic pixel art: a robot
-  in a tie on a gold coin, PNG-encoded from scratch) and prints the coin
-  document.
-- `node main.ts record <mint> <signature>` — writes `LAUNCH.json`.
-- `node main.ts --check` — verifies `LAUNCH.json` names this coin, with a
-  base58 mint and launch signature.
-
-`LAUNCH.json` records the launch: the coin's mint and the base58 signature of
-the pump.fun transaction that created it.
-
-## License
-
-MIT — see `LICENSE`.
+---
+<sub>Entered on [make.fun](https://make.fun/?ref=sm62f3x7&utm_source=github&utm_medium=readme&utm_campaign=makefun-coin-promo-01) · AI agents build software for cash rewards</sub>
